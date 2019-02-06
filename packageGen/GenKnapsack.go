@@ -13,6 +13,7 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 type Data struct {
+	Domainlen int `json:"domainlen"`
 	Seed int64 `json:"seed"`
 	Score float64 `json:"score"`
 	Payload [] Entry `json:"payload"`
@@ -37,12 +38,12 @@ type SelectionStatObj struct {
 	genres map[string] int
 }
 
-func Gen(seed int64) (* Data){
+func Gen(seed int64, startyear int64, endyear int64) (* Data){
 	fmt.Println(seed)
 	rand.Seed(seed)
-	domain, domain_len := select_domain(1830, 1839)
-	generation := 3
-	inds_count := 1024
+	domain, domain_len := select_domain(startyear, endyear)
+	generation := 100
+	inds_count := 100
 	inds := make([]*SelectionObj, 0)
 
 	for i := 0; i < generation; i++ {
@@ -60,7 +61,7 @@ func Gen(seed int64) (* Data){
 		}
 		inds = sort_inds(inds)
 		if i % 10 == 0 {
-			fmt.Println(inds[0].fitnessScore, inds[63].fitnessScore)
+			fmt.Println("Line 63", inds[0].fitnessScore)
 		}
 		inds = breed(inds, domain, seed)
 		
@@ -73,6 +74,7 @@ func Gen(seed int64) (* Data){
 	selected := print_values(domain, inds)
 	//main_test()
 	data := new(Data)
+	data.Domainlen = len(domain)
 	data.Seed = seed
 	data.Score = inds[0].fitnessScore
 	data.Payload = selected
@@ -93,10 +95,12 @@ func print_values(domain []Entry, inds []*SelectionObj)([] Entry){
 func breed(inds []*SelectionObj, domain []Entry, seed int64)([]*SelectionObj) {
 	halfway := len(inds[0].selectionArray) / 2
 	offsprings := make([]*SelectionObj, 0)
-	// rand.Seed(seed)
+	
 	for i := 0; i < (len(inds) / 2) - 0; i = i + 2 {
 		male := inds[i].selectionArray
-		female := inds[rand.Intn(len(inds))].selectionArray
+		breedNum := rand.Intn(len(inds))
+		// fmt.Println("breedNum: ", breedNum)
+		female := inds[breedNum].selectionArray
 		
 		offspring1 := new(SelectionObj)
 		offspring2 := new(SelectionObj)
@@ -104,24 +108,35 @@ func breed(inds []*SelectionObj, domain []Entry, seed int64)([]*SelectionObj) {
 		offspring1.selectionArray = append(male[halfway:], female[:halfway]...)
 		offspring2.selectionArray = append(female[halfway:], male[:halfway]...)
 
-		offsprings = append(offsprings, offspring1, offspring2, inds[i], mass_mutate(inds[i], domain, seed))
+		// offsprings = append(offsprings, offspring1, offspring2, inds[i], mass_mutate(inds[i], domain, seed))
+		offsprings = append(offsprings, inds[i], mass_mutate(inds[i], domain, seed))
+		// offsprings = append(offsprings, inds[i], inds[i+1])
 
 	}
 	return offsprings
 }
 
 func mass_mutate( obj *SelectionObj, domain []Entry, seed int64)(*SelectionObj) {
-	// rand.Seed(seed)
-	mutationChance := .05
+	mutationChance := 5
 	remutate_max := 3
 	stats := calc_fitness(domain, obj, false)
-	for key, value := range stats.genresWC {
-		words_needed := 2000000 - value
+	if len(obj.selectionArray) != len(domain) {
+		NewLenError("123")
+	}
+	// genresArray := {"NF", "MAG", "FIC"}
+	var genresArray [3]string
+	genresArray[0] = "NF"
+	genresArray[1] = "MAG"
+	genresArray[2] = "FIC"
+	for j := 0; j < len(genresArray); j++ {
+		words_needed := 2000000 - stats.genresWC[genresArray[j]]
+		mutationRoll := rand.Intn(100)
+		fmt.Println("mutationRoll: ", mutationRoll, mutationChance)
 		for i := 0; i < len(obj.selectionArray); i++ {
-			if words_needed > 0 && obj.selectionArray[i] == 0 && domain[i].Genre == key && rand.Float64() < mutationChance{
+			if words_needed > 0 && obj.selectionArray[i] == 0 && domain[i].Genre == genresArray[j] && mutationRoll < mutationChance {
 				obj.selectionArray[i] = 1
 				words_needed = words_needed - domain[i].WordCount
-			} else if words_needed < 0 && obj.selectionArray[i] == 1 && domain[i].Genre == key && rand.Float64() < mutationChance {
+			} else if words_needed < 0 && obj.selectionArray[i] == 1 && domain[i].Genre == genresArray[j] && mutationRoll < mutationChance {
 				obj.selectionArray[i] = 0
 				words_needed = words_needed + domain[i].WordCount
 			}
@@ -155,7 +170,7 @@ func str_to_int(s string)(int){
 	i,_:= strconv.Atoi(s)
 	return i
 }
-func select_domain(year_lower_bound int, year_upper_bound int) ([]Entry, int) {
+func select_domain(year_lower_bound int64, year_upper_bound int64) ([]Entry, int) {
 	fmt.Println("opening file")
 	// file, _ := os.Open("test.csv")
 	file, _ := os.Open("./packageGen/sources_coha_for_algo.csv")
@@ -185,8 +200,8 @@ func select_domain(year_lower_bound int, year_upper_bound int) ([]Entry, int) {
 	return domain, len(domain)
 }
 
-func in_bounds(value int, lower_bound int, upper_bound int) (bool){
-	if value >= lower_bound && value <= upper_bound {
+func in_bounds(value int, lower_bound int64, upper_bound int64) (bool){
+	if int64(value) >= lower_bound && int64(value) <= upper_bound {
 		return true
 	} else {
 		return false
@@ -194,11 +209,12 @@ func in_bounds(value int, lower_bound int, upper_bound int) (bool){
 }
 
 func new_random_selection(len int, seed int64)(*SelectionObj) {
-	// rand.Seed(seed)
 	obj := new(SelectionObj)
 	obj.selectionArray = make([]int, len)
 	for i := range obj.selectionArray {
-		if rand.Float64() < .20{
+		selectRoll := rand.Float64()
+		// fmt.Println("SelectRoll: ", selectRoll)
+		if selectRoll < .20{
 			obj.selectionArray[i] = 1
 		}	
 	}
@@ -216,6 +232,7 @@ func calc_fitness(domain []Entry, obj *SelectionObj, print bool)(*SelectionStatO
 	stat.yearsWC = make(map[int] int)
 	stat.genresWC = make(map[string] int)
 	stat.genres = make(map[string] int)
+	// fmt.Println("Selection: ", obj)
 	for i := range obj.selectionArray {
 		if obj.selectionArray[i] == 1 {
 			stat.years[domain[i].Year]++
@@ -232,6 +249,7 @@ func calc_fitness(domain []Entry, obj *SelectionObj, print bool)(*SelectionStatO
 	}
 	
 	obj.fitnessScore = fitnessScore(stat)
+	// fmt.Println("Fitness score: ", obj.fitnessScore)
 	return stat
 }
 func fitnessScore(stats *SelectionStatObj)(float64){
@@ -338,4 +356,9 @@ func main_test() {
 	fmt.Println(fitnessScore(test1))
 	fmt.Println(fitnessScore(test2))
 	fmt.Println(fitnessScore(select_1830))
+}
+
+func NewLenError(text string) {
+	fmt.Println("Len mismatch error line ", text)
+	os.Exit(1)
 }
