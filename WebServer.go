@@ -30,7 +30,7 @@ func main() {
 			json.NewEncoder(w).Encode(data)
 		}
 		
-	}).Host("localhost:42069")
+	}).Host("localhost:8899")
 
 	r.HandleFunc("/getnewsubset/{startyear}/{endyear}", func(w http.ResponseWriter, r *http.Request) {
 		// Function Here
@@ -45,8 +45,8 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(data)
 		}
-	}).Host("localhost:42069")
+	}).Host("localhost:8899")
 
-	http.ListenAndServe(":42069", r)
+	http.ListenAndServe(":8899", r)
 	
 }
