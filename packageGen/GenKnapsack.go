@@ -105,11 +105,18 @@ func breed(inds []*SelectionObj, domain []Entry, seed int64)([]*SelectionObj) {
 		offspring1 := new(SelectionObj)
 		offspring2 := new(SelectionObj)
 
+		// fmt.Println(len(male[halfway:]), len(female[:halfway]))
+
 		offspring1.selectionArray = append(male[halfway:], female[:halfway]...)
 		offspring2.selectionArray = append(female[halfway:], male[:halfway]...)
-
+		if len(offspring1.selectionArray) != len(domain) {
+			NewLenError("111")
+		}
+		if len(offspring2.selectionArray) != len(domain) {
+			NewLenError("114")
+		}
 		// offsprings = append(offsprings, offspring1, offspring2, inds[i], mass_mutate(inds[i], domain, seed))
-		offsprings = append(offsprings, inds[i], mass_mutate(inds[i], domain, seed))
+		offsprings = append(offsprings, inds[i], inds[i+1], mass_mutate(inds[i], domain, seed), mass_mutate(inds[i+1], domain, seed))
 		// offsprings = append(offsprings, inds[i], inds[i+1])
 
 	}
@@ -123,7 +130,6 @@ func mass_mutate( obj *SelectionObj, domain []Entry, seed int64)(*SelectionObj) 
 	if len(obj.selectionArray) != len(domain) {
 		NewLenError("123")
 	}
-	// genresArray := {"NF", "MAG", "FIC"}
 	var genresArray [3]string
 	genresArray[0] = "NF"
 	genresArray[1] = "MAG"
@@ -131,7 +137,7 @@ func mass_mutate( obj *SelectionObj, domain []Entry, seed int64)(*SelectionObj) 
 	for j := 0; j < len(genresArray); j++ {
 		words_needed := 2000000 - stats.genresWC[genresArray[j]]
 		mutationRoll := rand.Intn(100)
-		fmt.Println("mutationRoll: ", mutationRoll, mutationChance)
+		// fmt.Println("mutationRoll: ", mutationRoll, mutationChance)
 		for i := 0; i < len(obj.selectionArray); i++ {
 			if words_needed > 0 && obj.selectionArray[i] == 0 && domain[i].Genre == genresArray[j] && mutationRoll < mutationChance {
 				obj.selectionArray[i] = 1
